@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>คำนวณค่าไฟ</title>
+    
+    <!-- PWA & Mobile Home Screen App Meta Tags -->
+    <meta name="application-name" content="คำนวณค่าไฟ">
+    <meta name="apple-mobile-web-app-title" content="คำนวณค่าไฟ">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111622">
+    <meta name="description" content="แอปพลิเคชันคำนวณหน่วยไฟฟ้าที่ใช้ (kWh) และประมาณการค่าไฟฟ้า">
+
+    <!-- Inline SVG App Icon for Home Screen & Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23182030'/%3E%3Cpath d='M56 18L26 56h22l-4 26 30-38H52l4-26z' fill='%23F59E0B' stroke='%23EA580C' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23182030'/%3E%3Cpath d='M56 18L26 56h22l-4 26 30-38H52l4-26z' fill='%23F59E0B' stroke='%23EA580C' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+    <!-- Dynamic Web App Manifest for Android Chrome "Install App / Add to Home Screen" -->
+    <link id="pwa-manifest" rel="manifest">
+
+    <!-- Google Fonts: Prompt / Inter for clean Thai & English numbers -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        appBg: '#111622',
+                        cardBg: '#18202F',
+                        cardBorder: '#263147',
+                        inputBg: '#121824',
+                        inputBorder: '#2A364F',
+                        btnYellow: '#FBBF24',
+                        btnYellowHover: '#F59E0B',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom subtle animations and mobile touch optimizations */
+        body {
+            background-color: #111622;
+            color: #F8FAFC;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        input {
+            user-select: text;
+        }
+        /* Hide number input spin buttons */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-result {
+            animation: slideUpFade 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6">
+
+    <!-- Main App Container -->
+    <main class="w-full max-w-md mx-auto pt-2 sm:pt-0">
+        
+        <!-- 1. Header Section (Matches Reference Image) -->
+        <header class="mb-5 px-1 flex items-start justify-between">
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <!-- Orange/Gold Lightning Bolt SVG Icon -->
+                    <svg class="w-7 h-7 flex-shrink-0 drop-shadow-sm" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="boltGrad" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#FBBF24"/>
+                                <stop offset="55%" stop-color="#F97316"/>
+                                <stop offset="100%" stop-color="#EA580C"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M13 2L4.5 13.5H11.5L10.5 22L19.5 10.5H12.5L13 2Z" fill="url(#boltGrad)" stroke="#F97316" stroke-width="1.2" stroke-linejoin="round"/>
+                    </svg>
+                    <h1 class="text-2xl sm:text-[26px] font-bold tracking-tight text-white">คำนวณค่าไฟ</h1>
+                </div>
+                <p class="text-slate-400 text-sm mt-1">คำนวณหน่วยไฟฟ้าที่ใช้ (kWh)</p>
+            </div>
+
+            <!-- Install / Add to Home Screen Helper Button -->
+            <button id="installHelpBtn" type="button" onclick="openInstallModal()" title="วิธีติดตั้งลงหน้าจอมือถือ"
+                class="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-amber-400 bg-[#18202F] hover:bg-[#1E283B] border border-[#263147] px-3 py-2 rounded-xl transition-colors active:scale-95">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                <span>ติดตั้งแอป</span>
+            </button>
+        </header>
+
+        <!-- 2. Main Form Card (Dark Slate/Navy Rounded Card) -->
+        <section class="bg-[#18202F] border border-[#263147] rounded-2xl p-5 sm:p-6 shadow-2xl">
+            <form id="calcForm" novalidate class="space-y-4">
+                
+                <!-- Input 1: กระแส (A) -->
+                <div>
+                    <label for="currentInput" class="block text-sm font-semibold text-slate-100 mb-2">
+                        กระแส (A)
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="currentInput" inputmode="decimal" step="any" min="0" placeholder="เช่น 5"
+                            class="w-full bg-[#121824] border border-[#2A364F] focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40 rounded-xl px-4 py-3 text-base text-white placeholder-slate-500 outline-none transition-all">
+                        <span class="w-8 text-sm font-medium text-slate-400 shrink-0">A</span>
+                    </div>
+                </div>
+
+                <!-- Input 2: แรงดัน (V) -->
+                <div>
+                    <label for="voltageInput" class="block text-sm font-semibold text-slate-100 mb-2">
+                        แรงดัน (V)
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="voltageInput" inputmode="decimal" step="any" min="0" placeholder="เช่น 220"
+                            class="w-full bg-[#121824] border border-[#2A364F] focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40 rounded-xl px-4 py-3 text-base text-white placeholder-slate-500 outline-none transition-all">
+                        <span class="w-8 text-sm font-medium text-slate-400 shrink-0">V</span>
+                    </div>
+                </div>
+
+                <!-- Input 3: จำนวนวันที่ใช้ (Day) -->
+                <div>
+                    <label for="daysInput" class="block text-sm font-semibold text-slate-100 mb-2">
+                        จำนวนวันที่ใช้ (Day)
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="daysInput" inputmode="decimal" step="any" min="0" placeholder="เช่น 30"
+                            class="w-full bg-[#121824] border border-[#2A364F] focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40 rounded-xl px-4 py-3 text-base text-white placeholder-slate-500 outline-none transition-all">
+                        <span class="w-8 text-sm font-medium text-slate-400 shrink-0">วัน</span>
+                    </div>
+                </div>
+
+                <!-- Input 4: ระยะเวลาที่ใช้ต่อวัน (hr) -->
+                <div>
+                    <label for="hoursInput" class="block text-sm font-semibold text-slate-100 mb-2">
+                        ระยะเวลาที่ใช้ต่อวัน (hr)
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="number" id="hoursInput" inputmode="decimal" step="any" min="0" max="24" placeholder="เช่น 8"
+                            class="w-full bg-[#121824] border border-[#2A364F] focus:border-amber-400 focus:ring-1 focus:ring-amber-400/40 rounded-xl px-4 py-3 text-base text-white placeholder-slate-500 outline-none transition-all">
+                        <span class="w-8 text-sm font-medium text-slate-400 shrink-0">ชม.</span>
+                    </div>
+                </div>
+
+                <!-- Validation Alert Banner (Hidden by default) -->
+                <div id="errorMessage" class="hidden bg-red-500/10 border border-red-500/40 text-red-300 text-xs rounded-xl px-3.5 py-2.5 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span id="errorText">กรุณากรอกข้อมูลตัวเลขให้ครบทุกช่อง</span>
+                </div>
+
+                <!-- Action Buttons Row -->
+                <div class="pt-3 flex items-center gap-3">
+                    <!-- Primary Yellow-Gold Calculate Button -->
+                    <button type="submit"
+                        class="flex-[1.45] bg-[#FBBF24] hover:bg-[#F59E0B] active:scale-[0.98] text-[#111622] font-bold text-base py-3.5 px-5 rounded-xl shadow-lg shadow-amber-500/15 transition-all cursor-pointer">
+                        คำนวณ
+                    </button>
+
+                    <!-- Secondary Outlined Reset Button -->
+                    <button type="button" id="resetBtn"
+                        class="flex-1 bg-transparent hover:bg-[#222C3F] active:scale-[0.98] text-slate-200 font-semibold text-base py-3.5 px-4 rounded-xl border border-[#33415C] transition-all cursor-pointer">
+                        ล้างค่า
+                    </button>
+                </div>
+            </form>
+
+            <!-- 3. Result Section (Shown when calculated) -->
+            <div id="resultSection" class="hidden mt-6 pt-5 border-t border-[#263147] animate-result">
+                <div class="bg-[#121824] border border-amber-400/30 rounded-2xl p-4 sm:p-5">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-slate-400">หน่วยไฟฟ้าที่ใช้ทั้งหมด</span>
+                        <span class="text-[11px] bg-amber-400/15 text-amber-300 px-2.5 py-0.5 rounded-full font-medium">
+                            กำลังไฟ <span id="wattDisplay">0</span> W
+                        </span>
+                    </div>
+
+                    <!-- Main kWh Result -->
+                    <div class="flex items-baseline gap-2 my-1">
+                        <span id="kwhDisplay" class="text-3xl sm:text-4xl font-bold text-amber-400 tracking-tight">0.00</span>
+                        <span class="text-base font-semibold text-slate-300">หน่วย (kWh)</span>
+                    </div>
+
+                    <p id="formulaSummary" class="text-xs text-slate-500 mt-1">
+                        สูตร: (A × V × วัน × ชม.) ÷ 1,000
+                    </p>
+
+                    <!-- Optional Cost Estimation Toggle & Calculator -->
+                    <div class="mt-4 pt-3 border-t border-[#222C3F]">
+                        <button type="button" id="toggleCostBtn"
+                            class="w-full flex items-center justify-between text-xs font-medium text-slate-300 hover:text-amber-400 transition-colors py-1">
+                            <span class="flex items-center gap-1.5">
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                คำนวณค่าไฟเป็นเงินบาท (เพิ่มเติม)
+                            </span>
+                            <svg id="costChevron" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Collapsible Cost Box -->
+                        <div id="costEstimationBox" class="hidden mt-3 space-y-2.5 bg-[#18202F] p-3 rounded-xl border border-[#263147]">
+                            <div class="flex items-center justify-between gap-3">
+                                <label for="rateInput" class="text-xs text-slate-300 shrink-0">ค่าไฟต่อหน่วย:</label>
+                                <div class="flex items-center gap-2 max-w-[150px]">
+                                    <input type="number" id="rateInput" inputmode="decimal" step="0.01" min="0" value="4.18"
+                                        class="w-full bg-[#121824] border border-[#2A364F] focus:border-amber-400 rounded-lg px-2.5 py-1.5 text-sm text-right text-white outline-none">
+                                    <span class="text-xs text-slate-400 shrink-0">บาท</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-1.5 border-t border-[#263147]">
+                                <span class="text-xs text-slate-400">ค่าไฟประมาณการ:</span>
+                                <div class="text-right">
+                                    <span id="bahtDisplay" class="text-lg font-bold text-emerald-400">0.00</span>
+                                    <span class="text-xs text-slate-300 ml-1">บาท</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer Note -->
+        <footer class="mt-5 text-center text-xs text-slate-500">
+            <p>รองรับการเพิ่มลงหน้าจอหลัก (Add to Home Screen) บนมือถือ</p>
+        </footer>
+    </main>
+
+    <!-- 4. Modal: How to Install on Android / iOS Home Screen -->
+    <div id="installModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+        <div class="bg-[#18202F] border border-[#2A364F] rounded-2xl max-w-sm w-full p-5 shadow-2xl animate-result">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-amber-400/15 flex items-center justify-center text-amber-400 font-bold">⚡</span>
+                    <h2 class="text-base font-bold text-white">ติดตั้งแอปลงหน้าจอมือถือ</h2>
+                </div>
+                <button type="button" onclick="closeInstallModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                คุณสามารถสร้างไอคอนแอป <strong>"คำนวณค่าไฟ"</strong> ไว้บนหน้าจอมือถือเพื่อเปิดใช้งานเต็มจอได้ทันทีโดยไม่ต้องลงไฟล์ APK:
+            </p>
+
+            <!-- Direct PWA Install Trigger (Shown if browser fires beforeinstallprompt) -->
+            <button id="nativeInstallBtn" type="button" class="hidden w-full mb-3 bg-[#FBBF24] hover:bg-[#F59E0B] text-[#111622] font-bold text-sm py-2.5 px-4 rounded-xl transition-all">
+                ติดตั้งแอปลงเครื่องทันที
+            </button>
+
+            <div class="space-y-2.5 text-xs text-slate-300 bg-[#121824] p-3.5 rounded-xl border border-[#263147]">
+                <div>
+                    <p class="font-semibold text-amber-400 mb-1">📱 สำหรับ Android (Google Chrome):</p>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>เปิดหน้านี้ด้วยแอป <strong>Chrome</strong></li>
+                        <li>แตะปุ่มเมนู <strong>จุด 3 จุด (⋮)</strong> ที่มุมขวาบน</li>
+                        <li>เลือก <strong>"เพิ่มลงในหน้าจอหลัก"</strong> (Add to Home screen) หรือ <strong>"ติดตั้งแอป"</strong></li>
+                        <li>กด <strong>"เพิ่ม"</strong> ไอคอนสายฟ้าจะไปอยู่ที่หน้าจอทันที</li>
+                    </ol>
+                </div>
+                <div class="pt-2 border-t border-[#263147]">
+                    <p class="font-semibold text-sky-400 mb-1">🍎 สำหรับ iPhone / iPad (Safari):</p>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>แตะปุ่ม <strong>แชร์ (Share)</strong> ด้านล่าง</li>
+                        <li>เลื่อนลงแล้วเลือก <strong>"เพิ่มไปยังหน้าจอโฮม"</strong> (Add to Home Screen)</li>
+                    </ol>
+                </div>
+            </div>
+
+            <button type="button" onclick="closeInstallModal()" class="mt-4 w-full bg-[#263147] hover:bg-[#313F5B] text-white font-medium text-sm py-2.5 rounded-xl transition-colors">
+                เข้าใจแล้ว
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Generate Dynamic Web App Manifest for PWA Home Screen Installation ---
+        (function setupManifest() {
+            try {
+                const svgIcon = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%2318202F'/%3E%3Cpath d='M286 92L134 286h112l-20 134 152-194H266l20-134z' fill='%23FBBF24' stroke='%23EA580C' stroke-width='10' stroke-linejoin='round'/%3E%3C/svg%3E";
+                const manifest = {
+                    name: "คำนวณค่าไฟ",
+                    short_name: "คำนวณค่าไฟ",
+                    description: "คำนวณหน่วยไฟฟ้าที่ใช้ (kWh) และประมาณการค่าไฟฟ้า",
+                    start_url: window.location.href,
+                    display: "standalone",
+                    background_color: "#111622",
+                    theme_color: "#111622",
+                    orientation: "portrait",
+                    icons: [
+                        {
+                            src: svgIcon,
+                            sizes: "192x192",
+                            type: "image/svg+xml",
+                            purpose: "any maskable"
+                        },
+                        {
+                            src: svgIcon,
+                            sizes: "512x512",
+                            type: "image/svg+xml",
+                            purpose: "any maskable"
+                        }
+                    ]
+                };
+                const stringManifest = JSON.stringify(manifest);
+                const blob = new Blob([stringManifest], { type: 'application/json' });
+                const manifestURL = URL.createObjectURL(blob);
+                document.getElementById('pwa-manifest').setAttribute('href', manifestURL);
+            } catch (e) {
+                console.warn("Manifest setup skipped:", e);
+            }
+        })();
+
+        // Capture Android Chrome native install prompt if available
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const nativeBtn = document.getElementById('nativeInstallBtn');
+            if (nativeBtn) nativeBtn.classList.remove('hidden');
+        });
+
+        document.getElementById('nativeInstallBtn').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                deferredPrompt = null;
+                closeInstallModal();
+            }
+        });
+
+        // --- 2. Application State & DOM Elements ---
+        const calcForm = document.getElementById('calcForm');
+        const currentInput = document.getElementById('currentInput');
+        const voltageInput = document.getElementById('voltageInput');
+        const daysInput = document.getElementById('daysInput');
+        const hoursInput = document.getElementById('hoursInput');
+        const resetBtn = document.getElementById('resetBtn');
+
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const resultSection = document.getElementById('resultSection');
+
+        const wattDisplay = document.getElementById('wattDisplay');
+        const kwhDisplay = document.getElementById('kwhDisplay');
+        const formulaSummary = document.getElementById('formulaSummary');
+
+        const toggleCostBtn = document.getElementById('toggleCostBtn');
+        const costChevron = document.getElementById('costChevron');
+        const costEstimationBox = document.getElementById('costEstimationBox');
+        const rateInput = document.getElementById('rateInput');
+        const bahtDisplay = document.getElementById('bahtDisplay');
+
+        let latestKwh = 0;
+
+        // Format numbers cleanly with commas and up to 2-3 decimals
+        function formatNumber(num, maxDecimals = 2) {
+            return num.toLocaleString('th-TH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: maxDecimals
+            });
+        }
+
+        // Show validation error banner
+        function showError(msg) {
+            errorText.textContent = msg;
+            errorMessage.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+        // Update Baht estimation whenever kWh or rate changes
+        function updateCostEstimation() {
+            const rate = parseFloat(rateInput.value);
+            if (!isNaN(rate) && rate >= 0) {
+                const totalBaht = latestKwh * rate;
+                bahtDisplay.textContent = formatNumber(totalBaht, 2);
+            } else {
+                bahtDisplay.textContent = '0.00';
+            }
+        }
+
+        // --- 3. Calculation Logic ---
+        calcForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            hideError();
+
+            const current = parseFloat(currentInput.value);
+            const voltage = parseFloat(voltageInput.value);
+            const days = parseFloat(daysInput.value);
+            const hours = parseFloat(hoursInput.value);
+
+            // Validate inputs
+            if (isNaN(current) || isNaN(voltage) || isNaN(days) || isNaN(hours)) {
+                showError('กรุณากรอกตัวเลขให้ครบทั้ง 4 ช่องก่อนกดคำนวณ');
+                return;
+            }
+
+            if (current < 0 || voltage < 0 || days < 0 || hours < 0) {
+                showError('ค่าที่กรอกต้องไม่ติดลบ กรุณาตรวจสอบอีกครั้ง');
+                return;
+            }
+
+            if (hours > 24) {
+                showError('ระยะเวลาที่ใช้ต่อวันต้องไม่เกิน 24 ชั่วโมง');
+                return;
+            }
+
+            // Formula:
+            // Power (W) = Current (A) * Voltage (V)
+            // Energy (kWh) = (Current * Voltage * Days * Hours) / 1000
+            const watts = current * voltage;
+            const kwh = (current * voltage * days * hours) / 1000;
+            latestKwh = kwh;
+
+            // Render results
+            wattDisplay.textContent = watts.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+            kwhDisplay.textContent = formatNumber(kwh, kwh < 1 ? 3 : 2);
+            formulaSummary.textContent = `(${current} A × ${voltage} V × ${days} วัน × ${hours} ชม.) ÷ 1,000`;
+
+            updateCostEstimation();
+
+            // Reveal result card with animation
+            resultSection.classList.remove('hidden');
+            
+            // Smooth scroll into view on small mobile screens
+            setTimeout(() => {
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+        });
+
+        // --- 4. Reset Button Logic ---
+        resetBtn.addEventListener('click', function() {
+            currentInput.value = '';
+            voltageInput.value = '';
+            daysInput.value = '';
+            hoursInput.value = '';
+            latestKwh = 0;
+            hideError();
+            resultSection.classList.add('hidden');
+            currentInput.focus();
+        });
+
+        // --- 5. Optional Cost Estimation Toggle & Live Recalculation ---
+        toggleCostBtn.addEventListener('click', function() {
+            const isHidden = costEstimationBox.classList.contains('hidden');
+            if (isHidden) {
+                costEstimationBox.classList.remove('hidden');
+                costChevron.classList.add('rotate-180');
+            } else {
+                costEstimationBox.classList.add('hidden');
+                costChevron.classList.remove('rotate-180');
+            }
+        });
+
+        rateInput.addEventListener('input', updateCostEstimation);
+
+        // --- 6. Modal Controls ---
+        const installModal = document.getElementById('installModal');
+        function openInstallModal() {
+            installModal.classList.remove('hidden');
+            installModal.classList.add('flex');
+        }
+        function closeInstallModal() {
+            installModal.classList.add('hidden');
+            installModal.classList.remove('flex');
+        }
+        installModal.addEventListener('click', function(e) {
+            if (e.target === installModal) closeInstallModal();
+        });
+    </script>
+</body>
+</html>
